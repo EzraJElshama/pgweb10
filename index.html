@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sebaran Titik Kontrol Tanah Bandung</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            display: flex;
+            height: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #map {
+            width: 70%;
+            height: 100%;
+            border: 1px solid black;
+        }
+
+        .kanan {
+            width: 30%;
+            padding-left: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1 {
+            font-size: 22px;
+            margin: 0 0 15px 0;
+        }
+
+        .tabel {
+            max-height: 50%;
+            overflow: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            border: 1px solid black;
+            padding: 5px;
+            font-size: 13px;
+            text-align: left;
+        }
+
+        #foto {
+            flex: 1;
+            margin-top: 20px;
+            border: 1px solid black;
+            text-align: center;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        #foto img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div id="map"></div>
+
+        <div class="kanan">
+            <h1>Sebaran Titik Kontrol Tanah Bandung</h1>
+
+            <div class="tabel">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Desa</th>
+                            <th>Kecamatan</th>
+                            <th>Latitude</th>
+                            <th>Longitude</th>
+                            <th>Ellipsoid</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabel-body"></tbody>
+                </table>
+            </div>
+
+            <div id="foto"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="">
+        </script>
+
+    <script>
+        // Inisialisasi Peta
+        var map = L.map('map').setView([-6.8933596, 107.6104832], 15);
+
+        // Basemap
+        var osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        });
+
+        var Esri_WorldImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+        });
+
+        var rupabumiindonesia = L.tileLayer('https://geoservices.big.go.id/rbi/rest/services/BASEMAP/Rupabumi_Indonesia/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Badan Informasi Geospasial'
+        });
+
+        osm.addTo(map);
+
+        // Control Layer
+        var baseMaps = {
+            "OpenStreetMap": osm,
+            "Esri World Imagery": Esri_WorldImagery,
+            "Rupa Bumi Indonesia": rupabumiindonesia,
+        };
+
+        var overlayMaps = {};
+
+        L.control.layers(baseMaps, overlayMaps, {collapsed: false}).addTo(map);
+
+        // Scale
+        L.control.scale({
+            position: "bottomleft",
+            imperial: false,
+        }).addTo(map);
+
+        // Mengambil data dari index.php
+        fetch('index.php')
+            .then(function (res) {
+                return res.json();
+            })
+            .then(function (data) {
+                var tbody = document.getElementById('tabel-body');
+                var semuaMarker = [];
+
+                for (var i = 0; i < data.length; i++) {
+                    var d = data[i];
+
+                    // Marker
+                    var marker = L.marker([d.latitude, d.longitude]).addTo(map);
+                    marker.bindPopup(
+                        '<b>' + d.desa + '</b><br>' +
+                        'ID: ' + d.id + '<br>' +
+                        'Kecamatan: ' + d.kec + '<br>' +
+                        'Latitude: ' + d.latitude + '<br>' +
+                        'Longitude: ' + d.longitude + '<br>' +
+                        'Ellipsoid: ' + d.ellipsoid
+                    );
+                    semuaMarker.push(marker);
+
+                    // Foto muncul sesuai id saat marker diklik
+                    marker.on('click', (function (id) {
+                        return function () {
+                            document.getElementById('foto').innerHTML =
+                                '<img src="images/titik' + id + '.png" onerror="this.onerror=null; this.src=\'images/titik' + id + '.jpg\'">';
+                        };
+                    })(d.id));
+
+                    // Tabel
+                    tbody.innerHTML +=
+                        '<tr>' +
+                        '<td>' + d.id + '</td>' +
+                        '<td>' + d.desa + '</td>' +
+                        '<td>' + d.kec + '</td>' +
+                        '<td>' + d.latitude + '</td>' +
+                        '<td>' + d.longitude + '</td>' +
+                        '<td>' + d.ellipsoid + '</td>' +
+                        '</tr>';
+                }
+
+                if (semuaMarker.length > 0) {
+                    map.fitBounds(L.featureGroup(semuaMarker).getBounds());
+                }
+            });
+    </script>
+</body>
+
+</html>
