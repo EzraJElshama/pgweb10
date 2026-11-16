@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sebaran Titik Kontrol Tanah Bandung</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <style>
+        /* ===== Palet warna ===== */
+        :root {
+            --lilac: #F4D5FC;
+            --mint: #DEFCD7;
+            --cream: #FCFCD7;
+            --purple: #6F387D;
+            --green: #457D38;
+            --ink: #3a1d42;
+            --danger: #9b2c2c;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+            color: var(--ink);
+            background: var(--cream);
+        }
+
+        .layout {
+            display: flex;
+            height: 100%;
+            box-sizing: border-box;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        #map {
+            flex: 0 0 62%;
+            height: 100%;
+            border-radius: 20px;
+            overflow: hidden;
+            border: 3px solid var(--purple);
+            box-sizing: border-box;
+        }
+
+        .sidebar {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar h1 {
+            font-size: 1.5rem;
+            line-height: 1.3;
+            margin: 0 0 6px;
+            color: var(--purple);
+        }
+
+        .sidebar p.sub {
+            margin: 0 0 16px;
+            color: var(--green);
+            font-size: 0.9rem;
+        }
+
+        .table-wrap {
+            flex: 1;
+            min-height: 0;
+            overflow: auto;
+            border: 2px solid var(--purple);
+            border-radius: 12px;
+            background: var(--mint);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        thead th {
+            position: sticky;
+            top: 0;
+            background: var(--purple);
+            color: var(--cream);
+            text-align: left;
+            padding: 10px 8px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        tbody td {
+            padding: 9px 8px;
+            border-bottom: 1px solid var(--green);
+        }
+
+        tbody tr:nth-child(even) {
+            background: var(--cream);
+        }
+
+        tbody tr {
+            cursor: pointer;
+        }
+
+        tbody tr:hover,
+        tbody tr:focus {
+            background: var(--lilac);
+            outline: none;
+        }
+
+        td.num {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+
+        td.aksi {
+            white-space: nowrap;
+        }
+
+        /* ===== Tombol ===== */
+        .btn {
+            font: inherit;
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 5px 10px;
+            border-radius: 8px;
+            border: 2px solid var(--purple);
+            background: var(--cream);
+            color: var(--purple);
+            cursor: pointer;
+        }
+
+        .btn:hover,
+        .btn:focus-visible {
+            background: var(--purple);
+            color: var(--cream);
+            outline: none;
+        }
+
+        .btn-hapus {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .btn-hapus:hover,
+        .btn-hapus:focus-visible {
+            background: var(--danger);
+            color: var(--cream);
+        }
+
+        .btn-utama {
+            background: var(--purple);
+            color: var(--cream);
+            font-size: 0.9rem;
+            padding: 8px 16px;
+        }
+
+        .btn-utama:hover,
+        .btn-utama:focus-visible {
+            background: var(--green);
+            border-color: var(--green);
+        }
+
+        .btn-bahaya {
+            background: var(--danger);
+            border-color: var(--danger);
+            color: var(--cream);
+            font-size: 0.9rem;
+            padding: 8px 16px;
+        }
+
+        .btn-bahaya:hover,
+        .btn-bahaya:focus-visible {
+            background: var(--ink);
+            border-color: var(--ink);
+        }
+
+        .btn-batal {
+            font-size: 0.9rem;
+            padding: 8px 16px;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        /* ===== Pesan ===== */
+        #pesan:empty {
+            display: none;
+        }
+
+        #pesan {
+            margin-bottom: 12px;
+        }
+
+        .alert {
+            background: var(--lilac);
+            color: var(--purple);
+            border: 2px solid var(--purple);
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 0.9rem;
+        }
+
+        .alert.ok {
+            background: var(--mint);
+            color: var(--green);
+            border-color: var(--green);
+        }
+
+        /* ===== Kotak foto (gaya sama dengan peta) ===== */
+        .foto-box {
+            flex: 0 0 38%;
+            margin-top: 20px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid var(--purple);
+            border-radius: 20px;
+            overflow: hidden;
+            box-sizing: border-box;
+            background: var(--mint);
+        }
+
+        .foto-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .foto-cap {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            padding: 8px 14px;
+            background: var(--purple);
+            color: var(--cream);
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .foto-kosong {
+            margin: 0;
+            padding: 0 24px;
+            text-align: center;
+            color: var(--green);
+            font-size: 0.9rem;
+        }
+
+        /* ===== Dialog edit / hapus ===== */
+        dialog {
+            border: 3px solid var(--purple);
+            border-radius: 20px;
+            background: var(--cream);
+            color: var(--ink);
+            padding: 24px;
+            width: min(420px, 90vw);
+            font-family: inherit;
+        }
+
+        dialog::backdrop {
+            background: rgba(58, 29, 66, 0.5);
+        }
+
+        dialog h2 {
+            margin: 0 0 16px;
+            font-size: 1.2rem;
+            color: var(--purple);
+        }
+
+        dialog p {
+            margin: 0 0 20px;
+            line-height: 1.5;
+        }
+
+        .field {
+            margin-bottom: 12px;
+        }
+
+        .field label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--green);
+            margin-bottom: 4px;
+        }
+
+        .field input {
+            width: 100%;
+            box-sizing: border-box;
+            font: inherit;
+            padding: 8px 10px;
+            border: 2px solid var(--purple);
+            border-radius: 8px;
+            background: #fff;
+            color: var(--ink);
+        }
+
+        .field input:focus {
+            outline: 3px solid var(--lilac);
+        }
+
+        .field input[readonly] {
+            background: var(--mint);
+            border-color: var(--green);
+        }
+
+        .dialog-aksi {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .galat-form {
+            color: var(--danger);
+            font-size: 0.85rem;
+            min-height: 1.2em;
+            margin: 4px 0 0;
+        }
+
+        /* ===== Popup ===== */
+        .leaflet-popup-content-wrapper,
+        .leaflet-popup-tip {
+            background: var(--cream);
+            color: var(--ink);
+            border: 2px solid var(--purple);
+        }
+
+        .popup-title {
+            font-weight: 700;
+            font-size: 1rem;
+            margin-bottom: 6px;
+            color: var(--purple);
+        }
+
+        .popup-table td {
+            padding: 2px 8px 2px 0;
+            vertical-align: top;
+        }
+
+        .popup-table td:first-child {
+            color: var(--green);
+            font-weight: 600;
+        }
+
+        /* ===== Kontrol peta ===== */
+        .leaflet-control-layers {
+            background: var(--mint);
+            border: 2px solid var(--purple);
+            color: var(--ink);
+        }
+
+        .leaflet-bar a {
+            background: var(--cream);
+            color: var(--purple);
+            border-bottom-color: var(--purple);
+        }
+
+        .leaflet-bar a:hover {
+            background: var(--lilac);
+            color: var(--purple);
+        }
+
+        .leaflet-control-scale-line {
+            background: var(--cream);
+            border-color: var(--purple);
+            color: var(--ink);
+        }
+
+        .leaflet-control-attribution {
+            background: var(--cream);
+        }
+
+        @media (max-width: 900px) {
+
+            html,
+            body {
+                overflow: auto;
+            }
+
+            .layout {
+                flex-direction: column;
+                height: auto;
+            }
+
+            #map {
+                flex: none;
+                height: 60vh;
+                width: 100%;
+            }
+
+            .table-wrap {
+                max-height: 50vh;
+            }
+
+            .foto-box {
+                flex: none;
+                height: 40vh;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="layout">
+        <div id="map"></div>
+
+        <aside class="sidebar">
+            <h1>Sebaran Titik Kontrol Tanah Bandung</h1>
+            <p class="sub">Klik baris tabel atau marker untuk melihat detail titik.</p>
+
+            <div id="pesan" role="status"></div>
+
+            <div class="table-wrap" id="tabel-wrap" hidden>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Desa</th>
+                            <th>Kecamatan</th>
+                            <th>Latitude</th>
+                            <th>Longitude</th>
+                            <th>Ellipsoid</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabel-body"></tbody>
+                </table>
+            </div>
+
+            <div class="foto-box" id="foto-box"></div>
+        </aside>
+    </div>
+
+    <!-- Dialog edit -->
+    <dialog id="dlg-edit">
+        <h2>Edit titik kontrol</h2>
+        <form id="form-edit" novalidate>
+            <div class="field">
+                <label for="f-id">ID</label>
+                <input id="f-id" name="id" readonly>
+            </div>
+            <div class="field">
+                <label for="f-desa">Desa</label>
+                <input id="f-desa" name="desa" required>
+            </div>
+            <div class="field">
+                <label for="f-kec">Kecamatan</label>
+                <input id="f-kec" name="kec" required>
+            </div>
+            <div class="field">
+                <label for="f-lat">Latitude</label>
+                <input id="f-lat" name="latitude" type="number" step="any" required>
+            </div>
+            <div class="field">
+                <label for="f-lon">Longitude</label>
+                <input id="f-lon" name="longitude" type="number" step="any" required>
+            </div>
+            <div class="field">
+                <label for="f-ell">Ellipsoid</label>
+                <input id="f-ell" name="ellipsoid" type="number" step="any" required>
+            </div>
+            <p class="galat-form" id="galat-form"></p>
+            <div class="dialog-aksi">
+                <button type="button" class="btn btn-batal" id="btn-batal-edit">Batal</button>
+                <button type="submit" class="btn btn-utama" id="btn-simpan">Simpan perubahan</button>
+            </div>
+        </form>
+    </dialog>
+
+    <!-- Dialog hapus -->
+    <dialog id="dlg-hapus">
+        <h2>Hapus titik kontrol?</h2>
+        <p id="teks-hapus"></p>
+        <div class="dialog-aksi">
+            <button type="button" class="btn btn-batal" id="btn-batal-hapus">Batal</button>
+            <button type="button" class="btn btn-bahaya" id="btn-konfirmasi-hapus">Hapus data</button>
+        </div>
+    </dialog>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="">
+        </script>
+
+    <script>
+        // ===================== PETA =====================
+        var map = L.map('map').setView([-6.8933596, 107.6104832], 15);
+
+        var osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        });
+
+        var Esri_WorldImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+        });
+
+        var rupabumiindonesia = L.tileLayer('https://geoservices.big.go.id/rbi/rest/services/BASEMAP/Rupabumi_Indonesia/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Badan Informasi Geospasial'
+        });
+
+        osm.addTo(map);
+
+        // Ikon marker sesuai palet
+        var ikonTitik = L.divIcon({
+            className: '',
+            html: '<svg width="30" height="42" viewBox="0 0 30 42" xmlns="http://www.w3.org/2000/svg">' +
+                '<path d="M15 1C7.3 1 1 7.2 1 14.9c0 10.3 14 26.1 14 26.1s14-15.8 14-26.1C29 7.2 22.7 1 15 1z" fill="#457D38" stroke="#6F387D" stroke-width="2"/>' +
+                '<circle cx="15" cy="15" r="5.5" fill="#FCFCD7"/></svg>',
+            iconSize: [30, 42],
+            iconAnchor: [15, 41],
+            popupAnchor: [0, -36]
+        });
+
+        var markerLayer = L.layerGroup().addTo(map);
+        var markers = [];
+
+        var baseMaps = {
+            "OpenStreetMap": osm,
+            "Esri World Imagery": Esri_WorldImagery,
+            "Rupa Bumi Indonesia": rupabumiindonesia,
+        };
+
+        var overlayMaps = {
+            "Titik Kontrol Tanah": markerLayer
+        };
+
+        L.control.layers(baseMaps, overlayMaps, { collapsed: false }).addTo(map);
+
+        L.control.scale({
+            position: "bottomleft",
+            imperial: false,
+        }).addTo(map);
+
+        // ===================== UTILITAS =====================
+        function esc(teks) {
+            var el = document.createElement('div');
+            el.textContent = teks;
+            return el.innerHTML;
+        }
+
+        var kotakPesan = document.getElementById('pesan');
+        var timerPesan = null;
+
+        function tampilkanPesan(teks, sukses) {
+            clearTimeout(timerPesan);
+            kotakPesan.innerHTML = '<div class="alert' + (sukses ? ' ok' : '') + '">' + esc(teks) + '</div>';
+            if (sukses) {
+                timerPesan = setTimeout(function () { kotakPesan.innerHTML = ''; }, 4000);
+            }
+        }
+
+        // Kirim permintaan POST ke index.php
+        function kirimAksi(body) {
+            return fetch('index.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            }).then(function (res) {
+                return res.json().then(function (json) {
+                    if (!res.ok || json.error) throw new Error(json.error || 'Permintaan gagal.');
+                    return json;
+                });
+            });
+        }
+
+        // ===================== FOTO TITIK =====================
+        var kotakFoto = document.getElementById('foto-box');
+        var ekstensiFoto = ['png', 'jpg', 'jpeg'];
+
+        function fotoKosong() {
+            kotakFoto.innerHTML = '<p class="foto-kosong">Klik salah satu marker untuk menampilkan foto titik.</p>';
+        }
+
+        function tampilFoto(d) {
+            var urutan = 0;
+            var img = new Image();
+            img.alt = 'Foto titik kontrol ' + d.desa;
+
+            function cobaBerikutnya() {
+                if (urutan >= ekstensiFoto.length) {
+                    kotakFoto.innerHTML = '<p class="foto-kosong">Foto untuk ID ' + d.id + ' tidak ditemukan di folder images.</p>';
+                    return;
+                }
+                img.src = 'images/titik' + d.id + '.' + ekstensiFoto[urutan++];
+            }
+
+            img.onerror = cobaBerikutnya;
+            img.onload = function () {
+                kotakFoto.innerHTML = '';
+                kotakFoto.appendChild(img);
+                var cap = document.createElement('div');
+                cap.className = 'foto-cap';
+                cap.textContent = d.desa + ', Kec. ' + d.kec;
+                kotakFoto.appendChild(cap);
+            };
+
+            cobaBerikutnya();
+        }
+
+        fotoKosong();
+
+        // ===================== DIALOG EDIT & HAPUS =====================
+        var dlgEdit = document.getElementById('dlg-edit');
+        var formEdit = document.getElementById('form-edit');
+        var galatForm = document.getElementById('galat-form');
+        var btnSimpan = document.getElementById('btn-simpan');
+        var dlgHapus = document.getElementById('dlg-hapus');
+        var btnKonfirmasiHapus = document.getElementById('btn-konfirmasi-hapus');
+        var dataDihapus = null;
+
+        function bukaEdit(d) {
+            galatForm.textContent = '';
+            document.getElementById('f-id').value = d.id;
+            document.getElementById('f-desa').value = d.desa;
+            document.getElementById('f-kec').value = d.kec;
+            document.getElementById('f-lat').value = d.latitude;
+            document.getElementById('f-lon').value = d.longitude;
+            document.getElementById('f-ell').value = d.ellipsoid;
+            dlgEdit.showModal();
+            document.getElementById('f-desa').focus();
+        }
+
+        document.getElementById('btn-batal-edit').addEventListener('click', function () {
+            dlgEdit.close();
+        });
+
+        formEdit.addEventListener('submit', function (e) {
+            e.preventDefault();
+            galatForm.textContent = '';
+
+            var body = {
+                action: 'update',
+                id: Number(document.getElementById('f-id').value),
+                desa: document.getElementById('f-desa').value.trim(),
+                kec: document.getElementById('f-kec').value.trim(),
+                latitude: document.getElementById('f-lat').value,
+                longitude: document.getElementById('f-lon').value,
+                ellipsoid: document.getElementById('f-ell').value
+            };
+
+            if (!body.desa || !body.kec) {
+                galatForm.textContent = 'Desa dan kecamatan wajib diisi.';
+                return;
+            }
+            if (body.latitude === '' || body.longitude === '' || body.ellipsoid === '') {
+                galatForm.textContent = 'Latitude, longitude, dan ellipsoid wajib diisi.';
+                return;
+            }
+
+            btnSimpan.disabled = true;
+            kirimAksi(body)
+                .then(function (res) {
+                    dlgEdit.close();
+                    tampilkanPesan(res.message, true);
+                    return muatData(false);
+                })
+                .catch(function (err) {
+                    galatForm.textContent = err.message;
+                })
+                .then(function () {
+                    btnSimpan.disabled = false;
+                });
+        });
+
+        function bukaHapus(d) {
+            dataDihapus = d;
+            document.getElementById('teks-hapus').textContent =
+                'Titik "' + d.desa + '" (ID ' + d.id + ') akan dihapus permanen dari database dan tidak bisa dikembalikan.';
+            dlgHapus.showModal();
+        }
+
+        document.getElementById('btn-batal-hapus').addEventListener('click', function () {
+            dlgHapus.close();
+        });
+
+        btnKonfirmasiHapus.addEventListener('click', function () {
+            if (!dataDihapus) return;
+            btnKonfirmasiHapus.disabled = true;
+
+            kirimAksi({ action: 'delete', id: dataDihapus.id })
+                .then(function (res) {
+                    dlgHapus.close();
+                    tampilkanPesan(res.message, true);
+                    return muatData(false);
+                })
+                .catch(function (err) {
+                    dlgHapus.close();
+                    tampilkanPesan(err.message, false);
+                })
+                .then(function () {
+                    btnKonfirmasiHapus.disabled = false;
+                    dataDihapus = null;
+                });
+        });
+
+        // ===================== MUAT & TAMPILKAN DATA =====================
+        function buatTombol(teks, kelas, aksi) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'btn ' + kelas;
+            b.textContent = teks;
+            b.addEventListener('click', function (e) {
+                e.stopPropagation();   // jangan ikut memicu klik baris
+                aksi();
+            });
+            return b;
+        }
+
+        function tampilkanData(data, sesuaikanPeta) {
+            var tbody = document.getElementById('tabel-body');
+
+            markerLayer.clearLayers();
+            markers = [];
+            tbody.innerHTML = '';
+            map.closePopup();
+            fotoKosong();
+
+            data.forEach(function (d) {
+                // Marker + popup
+                var popup =
+                    '<div class="popup-title">' + esc(d.desa) + '</div>' +
+                    '<table class="popup-table">' +
+                    '<tr><td>ID</td><td>: ' + d.id + '</td></tr>' +
+                    '<tr><td>Desa</td><td>: ' + esc(d.desa) + '</td></tr>' +
+                    '<tr><td>Kecamatan</td><td>: ' + esc(d.kec) + '</td></tr>' +
+                    '<tr><td>Latitude</td><td>: ' + d.latitude + '</td></tr>' +
+                    '<tr><td>Longitude</td><td>: ' + d.longitude + '</td></tr>' +
+                    '<tr><td>Ellipsoid</td><td>: ' + d.ellipsoid + '</td></tr>' +
+                    '</table>';
+
+                var m = L.marker([d.latitude, d.longitude], { icon: ikonTitik }).bindPopup(popup);
+                m.addTo(markerLayer);
+                markers.push(m);
+
+                m.on('popupopen', function () { tampilFoto(d); });
+                m.on('popupclose', fotoKosong);
+
+                // Baris tabel
+                var tr = document.createElement('tr');
+                tr.tabIndex = 0;
+                tr.innerHTML =
+                    '<td>' + d.id + '</td>' +
+                    '<td>' + esc(d.desa) + '</td>' +
+                    '<td>' + esc(d.kec) + '</td>' +
+                    '<td class="num">' + d.latitude + '</td>' +
+                    '<td class="num">' + d.longitude + '</td>' +
+                    '<td class="num">' + d.ellipsoid + '</td>';
+
+                var tdAksi = document.createElement('td');
+                tdAksi.className = 'aksi';
+                tdAksi.appendChild(buatTombol('Edit', 'btn-edit', function () { bukaEdit(d); }));
+                tdAksi.appendChild(document.createTextNode(' '));
+                tdAksi.appendChild(buatTombol('Hapus', 'btn-hapus', function () { bukaHapus(d); }));
+                tr.appendChild(tdAksi);
+
+                function pilih() {
+                    map.flyTo(m.getLatLng(), 17);
+                    m.openPopup();
+                }
+                tr.addEventListener('click', pilih);
+                tr.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' && e.target === tr) pilih();
+                });
+
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('tabel-wrap').hidden = markers.length === 0;
+
+            if (markers.length === 0) {
+                tampilkanPesan('Tidak ada data di database.', false);
+            } else if (sesuaikanPeta) {
+                map.fitBounds(L.featureGroup(markers).getBounds().pad(0.2));
+            }
+        }
+
+        // Mengambil data dari index.php (GET)
+        function muatData(sesuaikanPeta) {
+            return fetch('index.php')
+                .then(function (res) {
+                    return res.json().then(function (json) {
+                        if (!res.ok) throw new Error(json.error || 'Gagal mengambil data.');
+                        return json;
+                    });
+                })
+                .then(function (data) {
+                    tampilkanData(data, sesuaikanPeta);
+                })
+                .catch(function (err) {
+                    tampilkanPesan(err.message, false);
+                });
+        }
+
+        muatData(true);
+    </script>
+</body>
+
+</html>
