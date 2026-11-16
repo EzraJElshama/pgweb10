@@ -69,6 +69,23 @@
             font-size: 0.9rem;
         }
 
+        /* ===== Baris atas tabel: keterangan di kiri, tombol Input di kanan ===== */
+        .toolbar {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 12px;
+            margin: 0 0 12px;
+        }
+
+        .sidebar .toolbar p.sub {
+            margin: 0;
+        }
+
+        .toolbar .btn {
+            flex: none;
+        }
+
         .table-wrap {
             flex: 1;
             min-height: 0;
@@ -258,7 +275,7 @@
             font-size: 0.9rem;
         }
 
-        /* ===== Dialog edit / hapus ===== */
+        /* ===== Dialog input / edit / hapus ===== */
         dialog {
             border: 3px solid var(--purple);
             border-radius: 20px;
@@ -419,7 +436,11 @@
 
         <aside class="sidebar">
             <h1>Sebaran Titik Kontrol Tanah Bandung</h1>
-            <p class="sub">Klik baris tabel atau marker untuk melihat detail titik.</p>
+
+            <div class="toolbar">
+                <p class="sub">Klik baris tabel atau marker untuk melihat detail titik.</p>
+                <button type="button" class="btn btn-utama" id="btn-input">Input</button>
+            </div>
 
             <div id="pesan" role="status"></div>
 
@@ -443,6 +464,44 @@
             <div class="foto-box" id="foto-box"></div>
         </aside>
     </div>
+
+    <!-- Dialog input data baru -->
+    <dialog id="dlg-input">
+        <h2>Input titik kontrol baru</h2>
+        <form id="form-input" novalidate>
+            <div class="field">
+                <label for="i-id">ID</label>
+                <input id="i-id" value="Otomatis" readonly>
+            </div>
+            <div class="field">
+                <label for="i-desa">Desa</label>
+                <input id="i-desa" name="desa" placeholder="mis. Dago" autocomplete="off" required>
+            </div>
+            <div class="field">
+                <label for="i-kec">Kecamatan</label>
+                <input id="i-kec" name="kec" placeholder="mis. Coblong" autocomplete="off" required>
+            </div>
+            <div class="field">
+                <label for="i-lat">Latitude</label>
+                <input id="i-lat" name="latitude" type="number" step="any" min="-90" max="90"
+                    placeholder="mis. -6.8816568" required>
+            </div>
+            <div class="field">
+                <label for="i-lon">Longitude</label>
+                <input id="i-lon" name="longitude" type="number" step="any" min="-180" max="180"
+                    placeholder="mis. 107.6105775" required>
+            </div>
+            <div class="field">
+                <label for="i-ell">Ellipsoid</label>
+                <input id="i-ell" name="ellipsoid" type="number" step="any" placeholder="mis. 821.6053" required>
+            </div>
+            <p class="galat-form" id="galat-input"></p>
+            <div class="dialog-aksi">
+                <button type="button" class="btn btn-batal" id="btn-batal-input">Batal</button>
+                <button type="submit" class="btn btn-utama" id="btn-simpan-input">Simpan data</button>
+            </div>
+        </form>
+    </dialog>
 
     <!-- Dialog edit -->
     <dialog id="dlg-edit">
@@ -543,7 +602,6 @@
             imperial: false,
         }).addTo(map);
 
-        // ===================== UTILITAS =====================
         function esc(teks) {
             var el = document.createElement('div');
             el.textContent = teks;
@@ -557,11 +615,11 @@
             clearTimeout(timerPesan);
             kotakPesan.innerHTML = '<div class="alert' + (sukses ? ' ok' : '') + '">' + esc(teks) + '</div>';
             if (sukses) {
-                timerPesan = setTimeout(function () { kotakPesan.innerHTML = ''; }, 4000);
+                timerPesan = setTimeout(function () { kotakPesan.innerHTML = ''; }, 6000);
             }
         }
 
-        // Kirim permintaan POST ke index.php
+        // Mengirim permintaan POST ke index.php
         function kirimAksi(body) {
             return fetch('index.php', {
                 method: 'POST',
@@ -610,6 +668,77 @@
         }
 
         fotoKosong();
+
+        // ===================== DIALOG INPUT (DATA BARU) =====================
+        var dlgInput = document.getElementById('dlg-input');
+        var formInput = document.getElementById('form-input');
+        var galatInput = document.getElementById('galat-input');
+        var btnSimpanInput = document.getElementById('btn-simpan-input');
+
+        document.getElementById('btn-input').addEventListener('click', function () {
+            formInput.reset();
+            galatInput.textContent = '';
+            dlgInput.showModal();
+            document.getElementById('i-desa').focus();
+        });
+
+        document.getElementById('btn-batal-input').addEventListener('click', function () {
+            dlgInput.close();
+        });
+
+        formInput.addEventListener('submit', function (e) {
+            e.preventDefault();
+            galatInput.textContent = '';
+
+            var body = {
+                action: 'create',
+                desa: document.getElementById('i-desa').value.trim(),
+                kec: document.getElementById('i-kec').value.trim(),
+                latitude: document.getElementById('i-lat').value,
+                longitude: document.getElementById('i-lon').value,
+                ellipsoid: document.getElementById('i-ell').value
+            };
+
+            if (!body.desa || !body.kec) {
+                galatInput.textContent = 'Desa dan kecamatan wajib diisi.';
+                return;
+            }
+            if (body.latitude === '' || body.longitude === '' || body.ellipsoid === '') {
+                galatInput.textContent = 'Latitude, longitude, dan ellipsoid wajib diisi.';
+                return;
+            }
+
+            var lat = Number(body.latitude);
+            var lon = Number(body.longitude);
+            if (!isFinite(lat) || !isFinite(Number(body.ellipsoid))) {
+                galatInput.textContent = 'Latitude, longitude, dan ellipsoid harus berupa angka.';
+                return;
+            }
+            if (lat < -90 || lat > 90) {
+                galatInput.textContent = 'Latitude harus di antara -90 dan 90.';
+                return;
+            }
+            if (lon < -180 || lon > 180) {
+                galatInput.textContent = 'Longitude harus di antara -180 dan 180.';
+                return;
+            }
+
+            btnSimpanInput.disabled = true;
+            kirimAksi(body)
+                .then(function (res) {
+                    dlgInput.close();
+                    tampilkanPesan(res.message, true);
+                    return muatData(false).then(function () {
+                        sorotTitik(res.id);   // arahkan peta & tabel ke titik yang baru ditambahkan
+                    });
+                })
+                .catch(function (err) {
+                    galatInput.textContent = err.message;
+                })
+                .then(function () {
+                    btnSimpanInput.disabled = false;
+                });
+        });
 
         // ===================== DIALOG EDIT & HAPUS =====================
         var dlgEdit = document.getElementById('dlg-edit');
@@ -718,6 +847,16 @@
             return b;
         }
 
+        function sorotTitik(id) {
+            for (var i = 0; i < markers.length; i++) {
+                if (markers[i].dataId === id) {
+                    markers[i].baris.scrollIntoView({ block: 'nearest' });
+                    markers[i].pilih();
+                    return;
+                }
+            }
+        }
+
         function tampilkanData(data, sesuaikanPeta) {
             var tbody = document.getElementById('tabel-body');
 
@@ -773,6 +912,11 @@
                 tr.addEventListener('keydown', function (e) {
                     if (e.key === 'Enter' && e.target === tr) pilih();
                 });
+
+                // Simpan referensi agar titik bisa dipilih lewat ID 
+                m.dataId = d.id;
+                m.baris = tr;
+                m.pilih = pilih;
 
                 tbody.appendChild(tr);
             });
